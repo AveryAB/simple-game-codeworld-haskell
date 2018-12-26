@@ -1,0 +1,115 @@
+{-# LANGUAGE OverloadedStrings #-}     --THIS LINE IS IMPORTANT!! prevents errors with KeyPress
+import CodeWorld
+
+--Game Board data:(nºRows, nºColums, Robots position, List of Red squares, List of next move Options )
+type Estado = (Int, Int, Robot, [Rojo], [Opcion])
+--Robots position (tuple with coordinates of the square), (x,y)
+type Robot = (Int, Int)  
+--Tuple with position of red square(robot has already been in this square and can´t return to it)
+type Rojo = (Int, Int)   
+--Options of movements the robot can take in its position, Robot moves like a hores in chess, but cannot repeat squares
+type Opcion = (Event, Int, Int)
+--(Event/Button to press (to chose this option), x coordinate, y coordinate) x,y coordinates of square robot can move to
+
+
+--pintaNegro CREATES A GAME BOARD NxM by giving two positive integers "n" and "m"
+celdaEn :: Int -> Int-> Picture
+celdaEn n m = coloured (black) (translated (fromIntegral n + 0.5) (fromIntegral m + 0.5) (solidRectangle 1 1 ))
+
+fila :: Int -> Int-> Picture 
+fila 0 m = celdaEn 0 m
+fila n  m = celdaEn (n-1) m  & fila ( n -1) m
+
+pintaNegro :: Int -> Int -> Picture
+pintaNegro n 0 = blank
+pintaNegro n m = fila n m & pintaNegro n (m-1)
+
+--TO TEST ALL THE ABOVE uncoment :
+--main :: IO()
+--main = drawingOf ((pintaNegro 8 8) & coordinatePlane)
+
+
+-- pintaRobot DRAWS ROBOT ON BOARD AS YELLOW CIRCLE ON RED SQUARE giving the funcition a type Robot indicating the position of the square
+pintaRobot :: Robot -> Picture
+pintaRobot (i,j) =  coloured yellow (translated (fromIntegral i - 0.5 ) (fromIntegral j - 0.5 ) (solidCircle 0.5)) & coloured (red) (translated (fromIntegral i - 0.5 ) (fromIntegral j - 0.5 ) (solidRectangle 1 1 ))
+
+--main :: IO()
+--main = drawingOf ((pintaRobot (1, 8)) & (pintaNegro 8 8) & coordinatePlane)
+
+--pintaRojo DRAWS ALL RED SQUARES given a list of the position of these squares
+pintaRojo :: [Rojo] -> Picture
+pintaRojo [] = blank
+pintaRojo (r:lr) = prAux r & pintaRojo lr
+
+prAux :: Rojo -> Picture
+prAux (i,j) = coloured (red) (translated (fromIntegral i - 0.5 ) (fromIntegral j - 0.5 ) (solidRectangle 1 1 ))
+
+--main :: IO()
+--main = drawingOf ((pintaRojo [(2, 6), (1, 8)]) & (pintaRobot (4, 5)) & (pintaNegro 8 8) & coordinatePlane) 
+
+
+-- pintaOpcion PAINTS THE OPTION SQUARES IN GREEN given a list of options
+pintaOpcion :: [Opcion] -> Picture
+pintaOpcion [] = blank
+pintaOpcion ((KeyPress t, i, j):lo) = coloured (black) (translated (fromIntegral i - 0.5 ) (fromIntegral j - 0.5 ) (scaled 0.5 0.5 (text t)) ) & coloured (green) (translated (fromIntegral i - 0.5 ) (fromIntegral j - 0.5 ) (solidRectangle 1 1 )) & pintaOpcion lo
+
+--main :: IO()
+--main = drawingOf ((pintaOpcion [(KeyPress "1",1,4), (KeyPress "2",3,4), (KeyPress "3",4,5), (KeyPress "4",4,7), (KeyPress "5",3,8)]) & (pintaRojo [(1, 8)]) & (pintaRobot (2, 6)) & (pintaNegro 8 8) & coordinatePlane)
+
+
+-- pintaEstado GIVEN A STATE(type Estado) IT DRAWS ALL THE ABOVE:
+pintaEstado :: Estado -> Picture
+pintaEstado (n, m, ij, lr, lo) = pintaRobot ij & pintaRojo lr & pintaOpcion lo & pintaNegro n m  
+
+--main :: IO()
+--main = drawingOf ((pintaEstado (8, 8, (2, 6), [(1, 8)], [(KeyPress "1",1,4), (KeyPress "2",3,4), (KeyPress "3",4,5), (KeyPress "4",4,7), (KeyPress "5",3,8)])) & coordinatePlane)
+  
+
+--calculaOpciones RETURNS A LIST OF MOVEMENT OPTIONS given the robots position
+          -- (nºRows, nºColums, List of red squares, robots position)
+calculaOpciones :: Int -> Int -> [Rojo] -> Robot -> [Opcion]
+calculaOpciones n m lr rob = filter (fRojo lr) (filter (fDentro n m) (calOpcAux rob))
+
+calOpcAux :: Robot -> [Opcion]
+calOpcAux (i, j) = [(KeyPress "1", i-1, j-2), (KeyPress "2", i-2, j-1), (KeyPress "3", i-2, j+1), (KeyPress "4", i-1, j+2), (KeyPress "5", i+1, j+2), (KeyPress "6", i+2, j+1), (KeyPress "7", i+2, j-1), (KeyPress "8", i+1, j-2)] 
+
+fRojo :: [Rojo] -> Opcion -> Bool
+fRojo lr (_, i, j) = not ((i,j) `elem` lr)
+
+fDentro :: Int -> Int -> Opcion -> Bool
+fDentro n m (_, i, j) = 0<i && 0<j && i<=n && j<=m
+
+erAux :: [Opcion] -> [Rojo]-> [Rojo]
+erAux [] res = res
+erAux ((k, i, j):lo) res = erAux lo [(i, j)]++res 
+
+--main :: IO()
+--main = drawingOf ((pintaEstado (8, 8, (2, 6), [(1, 8)], calculaOpciones 8 8 [(1, 8)] (2, 6))) & coordinatePlane)
+
+
+-- manejaEvento DETERMINES THE NEXT STATE given an event and a state
+manejaEvento :: Event -> Estado -> Estado
+manejaEvento eve (n, m, (i,j), lr, lo) = (n, m, (newRob eve lo (i,j)), [(i,j)]++lr, calculaOpciones n m ([(i,j)]++lr) (newRob eve lo (i, j)))
+
+newRob :: Event -> [Opcion] ->Robot -> Robot
+newRob _ [] rob = undefined
+newRob eve lo rob = if filter (filOpc eve) lo ==  [] then rob else sacarRob (filter (filOpc eve) lo)
+
+sacarRob :: [Opcion] -> Robot
+sacarRob ((_, i, j):_) = (i, j)
+
+filOpc :: Event -> Opcion -> Bool
+filOpc eve (k, _, _) = eve == k 
+
+--main :: IO()
+--main = interactionOf (8, 8, (1, 8), [], (calculaOpciones 8 8 [] (1, 8))) (\_ estado -> estado) manejaEvento pintaEstado
+
+
+-- juego STARTS THE GAME given the dimentions of the game board (nxm)
+juego :: Int -> Int -> IO()
+juego n m = interactionOf (n, m, (1, m+1), [], (calculaOpciones n m [] (1, m+1)))
+            (\_ estado -> estado) manejaEvento pintaEstado
+
+--UNCOMENT TO TRY GAME:
+--main :: IO()
+--main = juego 8 8
