@@ -12,5 +12,5 @@ You can run this code and see its output using codeWorld on your navigator:
 
 To make a movement, press the option number on your keybord.
 
-![ ](Captura.PNG)
+![ ](Captura2.PNG)
 
