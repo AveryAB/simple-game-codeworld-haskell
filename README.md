@@ -5,7 +5,8 @@ without running out of movements.
 
 # Simple Board Game with CodeWorld and Haskell
 
-You can run this code and see its output using codeWorld on your navigator:
+## You can run this code and see its output using codeWorld on your navigator:
+
 * https://code.world/haskell#
 
 ![ ](Captura.PNG)
