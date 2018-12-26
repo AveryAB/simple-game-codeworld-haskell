@@ -77,7 +77,7 @@ fRojo :: [Rojo] -> Opcion -> Bool
 fRojo lr (_, i, j) = not ((i,j) `elem` lr)
 
 fDentro :: Int -> Int -> Opcion -> Bool
-fDentro n m (_, i, j) = 0<i && 0<j && i<=n && j<=m
+fDentro n m (_, i, j) = 0<i && 1<j && i<=n && j<=m+1
 
 erAux :: [Opcion] -> [Rojo]-> [Rojo]
 erAux [] res = res
@@ -111,5 +111,5 @@ juego n m = interactionOf (n, m, (1, m+1), [], (calculaOpciones n m [] (1, m+1))
             (\_ estado -> estado) manejaEvento pintaEstado
 
 --UNCOMENT TO TRY GAME:
---main :: IO()
---main = juego 8 8
+main :: IO()
+main = juego 8 8
